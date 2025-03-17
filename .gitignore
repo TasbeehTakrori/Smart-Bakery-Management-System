@@ -1,0 +1,35 @@
+# Ignore PyCharm project settings
+../.idea/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+.env/
+.envrc
+*.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore logs and environment files
+logs/
+*.log
+*.env
+.env.local
+
+# Ignore Streamlit cache
+~/.streamlit/
+.streamlit/
+
+
+# Ignore package files
+dist/
+build/
+*.egg-info/
+
+# Ignore Docker-related files (if using Docker)
+docker-compose.override.yml
