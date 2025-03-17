@@ -14,6 +14,8 @@ venv/
 *.venv
 pip-log.txt
 pip-delete-this-directory.txt
+.env
+.DS_Store
 
 # Ignore logs and environment files
 logs/
