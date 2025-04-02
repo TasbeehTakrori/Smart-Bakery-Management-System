@@ -1,4 +1,6 @@
 streamlit
 pandas
 prophet
-SQLAlchemy
+scikit-learn
+joblib
+Plotly

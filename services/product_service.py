@@ -13,7 +13,8 @@ def get_products():
             "description": p.description,
             "price": p.price,
             "stock": p.stock,
-            "image_url": p.image_url  # ← أضفنا هذا السطر
+            "image_url": p.image_url,
+            "created_at": p.created_at
         }
         for p in products
     ]
@@ -25,7 +26,8 @@ def add_product(product):
         description=product["description"],
         price=product["price"],
         stock=product["stock"],
-        image_url=product.get("image_url")  # ← هذا السطر هو الأهم
+        image_url=product.get("image_url"),
+        created_at= product.get("created_at")
     )
     session.add(new_product)
     session.commit()
