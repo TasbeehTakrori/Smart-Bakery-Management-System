@@ -33,7 +33,7 @@ with col1:
     st.markdown("""
     <div style='text-align: center; direction: rtl; background-color: #F9F3EC; padding: 20px; border-radius: 15px; box-shadow: 0px 0px 8px #eee;'>
         <h4>📦 المنتجات</h4>
-        <p>إدارة جميع منتجات المخبز بسهولة</p>
+        <p>إدارة جميع منتجات المخبز</p>
         """, unsafe_allow_html=True)
     if st.button("الذهاب إلى المنتجات", key="btn_products"):
         st.switch_page("pages/products.py")
@@ -41,8 +41,8 @@ with col1:
 with col2:
     st.markdown("""
     <div style='text-align: center; direction: rtl; background-color: #F9F3EC; padding: 20px; border-radius: 15px; box-shadow: 0px 0px 8px #eee;'>
-        <h4>🛒 الطلبات</h4>
-        <p>عرض وتتبع جميع الطلبات اليومية</p>
+        <h4>🛒 إدارةالطلبات</h4>
+        <p>توقع الطلبات اليومية والإنتاج المطلوب لتغطيتها</p>
         """, unsafe_allow_html=True)
     if st.button("الذهاب إلى الطلبات", key="btn_orders"):
         st.switch_page("pages/orders.py")

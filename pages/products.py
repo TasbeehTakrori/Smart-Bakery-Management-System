@@ -6,12 +6,13 @@ from services.product_ai import predict_avg_daily_demand
 from services.product_ai import get_daily_demand_forecast
 from services.order_service import get_latest_order_date
 from datetime import datetime, timedelta
-
+from ml.train_prophet_models import retrain_prophet_models
 import os
 import io
 import base64
 import pandas as pd
 import plotly.express as px
+from sqlalchemy import create_engine
 
 # ----------------- إعداد الصفحة -----------------
 st.set_page_config(page_title="المنتجات", page_icon="📦", layout="wide")
@@ -96,38 +97,6 @@ def render_product_card(product, demand):
         if latest_order:
             st.markdown(f"<p><strong>🕒 آخر طلب:</strong> {latest_order.strftime('%Y/%m/%d')}</p>",
                         unsafe_allow_html=True)
-        # رسم توقع الطلب اليومي
-        forecast_df = get_daily_demand_forecast(product["id"])
-        if forecast_df is not None:
-            today = datetime.now()
-            yesterday = today - timedelta(days=1)
-
-            forecast_df = forecast_df[forecast_df["ds"].between(yesterday, today + timedelta(days=6))].copy()
-            forecast_df["day"] = forecast_df["ds"].apply(
-                lambda d: f"{arabic_days[d.strftime('%A')]} - {d.strftime('%Y/%m/%d')}")
-            today_str = f"{arabic_days[today.strftime('%A')]} - {today.strftime('%Y/%m/%d')}"
-            forecast_df["color"] = forecast_df["day"].apply(lambda d: "red" if d == today_str else "#6D4C41")
-
-            st.markdown("<p><strong>📈 توقع الطلب القادم:</strong></p>", unsafe_allow_html=True)
-            fig = px.line(
-                forecast_df,
-                x="day",
-                y="yhat",
-                labels={"day": "اليوم والتاريخ", "yhat": "الطلب المتوقع"},
-                title="توقع الطلب اليومي",
-                markers=True
-            )
-            fig.update_traces(marker=dict(size=6))
-            fig.update_traces(marker_color=forecast_df["color"], line_color="#6D4C41")
-            fig.update_layout(
-                font=dict(family="Cairo, sans-serif", size=12),
-                xaxis_title="اليوم",
-                yaxis_title="الطلب المتوقع",
-                margin=dict(t=30, b=20),
-                height=300
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
 
     if st.session_state.get(f"edit_{product['id']}", False):
         render_edit_form(product)
@@ -246,6 +215,12 @@ with st.form("add_product_form"):
         st.success("✅ تم إضافة المنتج بنجاح.")
         st.rerun()
 
+#-------- إعادة تدريب النماذج ----------
+
+# عند الضغط على الزر
+if st.button("🔄 إعادة تدريب نماذج Prophet لجميع المنتجات"):
+    result = retrain_prophet_models()
+    st.success(result)
 # ----------------- تصدير CSV -----------------
 st.markdown("---")
 st.markdown("### 📟 تصدير المنتجات")
