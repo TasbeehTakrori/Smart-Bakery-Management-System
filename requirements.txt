@@ -1,0 +1,6 @@
+streamlit
+pandas
+prophet
+scikit-learn
+joblib
+Plotly
