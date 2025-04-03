@@ -2,11 +2,10 @@ import streamlit as st
 from components import header, footer
 from components.layout import apply_rtl
 from services import product_service
-from services.product_ai import predict_avg_daily_demand
-from services.product_ai import get_daily_demand_forecast
+from services.product_ai import  predict_avg_daily_demand_with_weather
 from services.order_service import get_latest_order_date
+from ml.train_prophet_models import retrain_prophet_models_with_weather
 from datetime import datetime, timedelta
-from ml.train_prophet_models import retrain_prophet_models
 import os
 import io
 import base64
@@ -170,7 +169,8 @@ if products:
 
     # ----------------- عرض كل بطاقة منتج -----------------
     for product in products:
-        demand = predict_avg_daily_demand(product["id"])
+        demand = predict_avg_daily_demand_with_weather(product["id"])
+        print(f"Demand={demand}")
         render_product_card(product, demand)
 else:
     st.info("لا توجد منتجات بعد.")
@@ -219,7 +219,7 @@ with st.form("add_product_form"):
 
 # عند الضغط على الزر
 if st.button("🔄 إعادة تدريب نماذج Prophet لجميع المنتجات"):
-    result = retrain_prophet_models()
+    result = retrain_prophet_models_with_weather()
     st.success(result)
 # ----------------- تصدير CSV -----------------
 st.markdown("---")
