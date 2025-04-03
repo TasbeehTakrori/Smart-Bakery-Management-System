@@ -2,7 +2,8 @@ import streamlit as st
 from components import header, footer
 from components.layout import apply_rtl
 from services import order_service, product_service
-from services.product_ai import get_daily_demand_forecast
+from services.product_ai import get_future_demand_forecast_with_weather
+from services.product_ai import get_prediction_vs_actual_analysis
 from services.order_service import get_latest_order_date
 import pandas as pd
 import plotly.express as px
@@ -32,8 +33,12 @@ st.markdown("""
 
 
 def render_product_card(product):
-    st.markdown("<div style='background-color:#FFFDF6; padding:15px; border-radius:12px; margin-bottom:20px; box-shadow:0 2px 8px #ccc;'>", unsafe_allow_html=True)
-    st.markdown(f"<h4 style='color:#4E342E;'>{product['name']}</h4>", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style='background-color:#3E2723; padding:10px; border-radius:10px;'>
+            <h3 style='color:#FFF3E0; text-align:center;'>{product['name']}</h3>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown("  ")
     stock = product["stock"]
     stock_display = f"<span style='color:red;'>⚠️ {stock} فقط!</span>" if stock < 5 else f"{stock}"
     st.markdown(f"<p><strong>📦 الكمية:</strong> {stock_display}</p>", unsafe_allow_html=True)
@@ -45,7 +50,7 @@ def render_product_card(product):
                     unsafe_allow_html=True)
 
     # رسم توقع الطلب اليومي
-    forecast_df = get_daily_demand_forecast(product["id"])
+    forecast_df = get_future_demand_forecast_with_weather(product["id"])
     if forecast_df is not None:
         today = datetime.now()
         yesterday = today - timedelta(days=1)
@@ -56,7 +61,7 @@ def render_product_card(product):
         today_str = f"{arabic_days[today.strftime('%A')]} - {today.strftime('%Y/%m/%d')}"
         forecast_df["color"] = forecast_df["day"].apply(lambda d: "red" if d == today_str else "#6D4C41")
 
-        st.markdown("<p><strong>📈 توقع الطلب القادم:</strong></p>", unsafe_allow_html=True)
+        st.markdown("<p><strong>📈 توقع الطلب للأيام القادمة:</strong></p>", unsafe_allow_html=True)
         fig = px.line(
             forecast_df,
             x="day",
@@ -74,28 +79,73 @@ def render_product_card(product):
             margin=dict(t=30, b=20),
             height=300
         )
-        st.plotly_chart(fig, use_container_width=True)
-
         # إضافة التنبؤ اليومي مع الكمية المتوقعة للإنتاج
         today_demand = forecast_df[forecast_df["day"].str.contains(today_str)]["yhat"].values
         if today_demand:
-            st.markdown(f"<p><strong>الطلب المتوقع اليوم للمنتج:</strong> {today_demand[0]:.1f} وحدة</p>", unsafe_allow_html=True)
+            st.markdown(f"<p><strong>الطلب المتوقع اليوم للمنتج:</strong> {today_demand[0]:.1f} وحدة</p>",
+                        unsafe_allow_html=True)
 
             # هنا يمكن أن نضيف الكمية المطلوبة للإنتاج بناءً على التنبؤ:
             production_needed = today_demand[0] - product["stock"]
             if production_needed > 0:
-                st.markdown(f"<p style='color:red;'><strong>تحتاج إلى إنتاج:</strong> {production_needed:.1f} وحدة اليوم لتغطية الطلب.</p>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<p style='color:red;'><strong>تحتاج إلى إنتاج:</strong> {production_needed:.1f} وحدة اليوم لتغطية الطلب.</p>",
+                    unsafe_allow_html=True)
             else:
-                st.markdown(f"<p style='color:green;'><strong>الكمية كافية:</strong> الإنتاج يكفي لتغطية الطلب.</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='color:green;'><strong>الكمية كافية:</strong> الإنتاج يكفي لتغطية الطلب.</p>",
+                            unsafe_allow_html=True)
 
+        st.plotly_chart(fig, use_container_width=True)
+
+
+        st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
+        st.markdown("### 📉 تحليل دقة التنبؤ", unsafe_allow_html=True)
+
+        compare_df, mae, mape, accuracy = get_prediction_vs_actual_analysis(product["id"])
+        if compare_df is None:
+            st.info("لا توجد بيانات كافية لتحليل التنبؤ.")
+            return
+
+        # رسم بياني
+        compare_df["day"] = compare_df["ds"].dt.strftime("%Y-%m-%d")
+        fig = px.line(compare_df, x="day", y=["actual", "predicted"],
+                      labels={"value": "الطلب", "day": "اليوم"},
+                      title="📈 الطلب الفعلي مقابل التوقع",
+                      markers=True)
+        fig.update_layout(font=dict(family="Cairo, sans-serif"))
+        st.plotly_chart(fig, use_container_width=True)
+
+        # جدول
+        table_df = compare_df[["ds", "actual", "predicted", "error", "error_percent"]].copy()
+        table_df["ds"] = table_df["ds"].dt.strftime("%Y-%m-%d")
+        table_df.rename(columns={
+            "ds": "التاريخ",
+            "actual": "الطلب الفعلي",
+            "predicted": "التوقع",
+            "error": "الفرق",
+            "error_percent": "% الخطأ"
+        }, inplace=True)
+        st.dataframe(table_df.style.format({"الطلب الفعلي": "{:.0f}", "التوقع": "{:.1f}", "الفرق": "{:.1f}", "% الخطأ": "{:.1f}%"}))
+
+        # تحليل نصي
+        st.markdown(f"""
+            ✅ <strong>الدقة:</strong> {accuracy:.1f}%  
+            📦 <strong>متوسط الخطأ:</strong> {mae:.1f} وحدة  
+            ⚠️ <strong>متوسط نسبة الخطأ:</strong> {mape:.1f}%
+        """, unsafe_allow_html=True)
+
+        # شريط تقدم
+        if accuracy < 0:
+            accuracy = 0
+        st.progress(min(accuracy / 100, 1.0))
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ----------------- التبويبات -----------------
-tab1, tab2, tab3, tab4 = st.tabs(["🕒 الطلبات", "👥 الزبائن", "🔮 التوقعات", "📊 الأداء العام"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔮 التوقعات", "👥 الزبائن", "🕒 الطلبات", "📊 الأداء العام"])
 
 # ----------------- تبويب الطلبات -----------------
-with tab1:
+with tab3:
     st.markdown("### 📊 الطلبات اليومية حسب المنتج (آخر ٧ أيام)", unsafe_allow_html=True)
 
     recent_orders = order_service.get_recent_orders(days=7)  # تأكد من دعم days
@@ -137,7 +187,7 @@ with tab2:
         st.info("لا توجد بيانات زبائن متكررين.")
 
 # ----------------- تبويب التوقعات -----------------
-with tab3:
+with tab1:
     st.markdown("### 🔮 توقع الطلبات القادمة", unsafe_allow_html=True)
     products = product_service.get_products()
     for p in products:

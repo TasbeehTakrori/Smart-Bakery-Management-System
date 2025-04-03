@@ -1,9 +1,28 @@
 from models.order import Order
 from models.product import Product
-
+import pandas as pd
 from datetime import datetime, timedelta
 from sqlalchemy.orm import joinedload
 
+
+def get_actual_orders_per_day(product_id: int, start_date, end_date):
+    session = SessionLocal()
+    orders = (
+        session.query(
+            Order.order_date.label("ds"),
+            func.sum(Order.quantity).label("actual")
+        )
+        .filter(Order.product_id == product_id)
+        .filter(Order.order_date >= start_date)
+        .filter(Order.order_date <= end_date)
+        .group_by(Order.order_date)
+        .all()
+    )
+    session.close()
+
+    df = pd.DataFrame(orders, columns=["ds", "actual"])
+    df["ds"] = pd.to_datetime(df["ds"])
+    return df
 
 def get_recent_orders(days=None, limit=None):
     session = SessionLocal()
