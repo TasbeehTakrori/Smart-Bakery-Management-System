@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import random
 
 # الاتصال بقاعدة البيانات
-conn = sqlite3.connect("bakery.db")
+conn = sqlite3.connect("../bakery.db")
 cursor = conn.cursor()
 
 # حذف البيانات السابقة (اختياري)
