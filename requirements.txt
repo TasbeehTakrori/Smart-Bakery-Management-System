@@ -4,3 +4,4 @@ prophet
 scikit-learn
 joblib
 Plotly
+openai

@@ -1,5 +1,6 @@
 import streamlit as st
-from components import header, footer, navigation
+import streamlit.components.v1 as components
+from components import header, footer
 from components.layout import apply_rtl
 from models.init_db import init_db
 init_db()
@@ -11,7 +12,6 @@ st.set_page_config(
     layout="wide"
 )
 apply_rtl()
-
 
 # --- Header ---
 header.render()
@@ -41,7 +41,7 @@ with col1:
 with col2:
     st.markdown("""
     <div style='text-align: center; direction: rtl; background-color: #F9F3EC; padding: 20px; border-radius: 15px; box-shadow: 0px 0px 8px #eee;'>
-        <h4>🛒 إدارةالطلبات</h4>
+        <h4>🛒 إدارة الطلبات اليومية</h4>
         <p>توقع الطلبات اليومية والإنتاج المطلوب لتغطيتها</p>
         """, unsafe_allow_html=True)
     if st.button("الذهاب إلى الطلبات", key="btn_orders"):
@@ -50,11 +50,24 @@ with col2:
 with col3:
     st.markdown("""
     <div style='text-align: center; direction: rtl; background-color: #F9F3EC; padding: 20px; border-radius: 15px; box-shadow: 0px 0px 8px #eee;'>
-        <h4>📊 لوحة التحكم</h4>
-        <p>تحليلات الأداء والمبيعات والمخزون</p>
+        <h4>🌾 تتبع المواد الخام</h4>
+        <p>إدارة وتحديث حالة المواد الخام في المخبز</p>
         """, unsafe_allow_html=True)
-    if st.button("الذهاب إلى لوحة التحكم", key="btn_dashboard"):
-        st.switch_page("./pages/dashboard.py")
+    if st.button("تتبع المواد الخام", key="btn_raw_materials"):
+        st.switch_page("pages/raw_materials.py")
+
+# تضمين الشات بوت داخل HTML باستخدام st.components.v1.html
+components.html("""
+    <div style="background-color: #F9F3EC; padding: 20px; border-radius: 10px; box-shadow: 0px 0px 8px #eee; margin-top: 20px;">
+        <iframe
+        src="https://app.thinkstack.ai/bot/index.html?chatbot_id=67f12c5766379c5dd706449b&type=inline"
+        frameborder="0"
+        width="100%"
+        height="600px"
+        style="border-radius: 15px;">
+        </iframe>
+    </div>
+""", height=600)
 
 # --- Footer ---
 footer.render()
