@@ -7,6 +7,9 @@ import os
 from services.weather_service import get_weather_forecast  # تأكدي من وجودها
 from services.order_service import get_actual_orders_per_day
 from services.weather_service import get_historical_weather_data
+from services.checkpoint_service import get_latest_checkpoint_values
+from services.checkpoint_service import get_checkpoint_conditions_last_n_days
+
 
 def predict_avg_daily_demand_with_weather(product_id, days=7, location="Nablus"):
     model_path = f"ai_models/prophet/prophet_product_{product_id}.pkl"
@@ -27,7 +30,14 @@ def predict_avg_daily_demand_with_weather(product_id, days=7, location="Nablus")
 
     # تحويل إلى DataFrame
     weather_df = pd.DataFrame(forecast_weather)
-    print("📋 بيانات الطقس المستقبلية:")
+    latest_checkpoints = get_latest_checkpoint_values()
+    checkpoint_df = pd.DataFrame({
+        "ds": weather_df["ds"]
+    })
+    for col, val in latest_checkpoints.items():
+        checkpoint_df[col] = val
+
+    weather_df = weather_df.merge(checkpoint_df, on="ds", how="left")
     print(weather_df)
 
     # توقع الطلب
@@ -79,17 +89,29 @@ def predict_daily_demand_with_weather(product_id):
     print(weather_data)
 
     # ⚙️ توليد future بدون أيام إضافية
-    future = model.history[["ds"]].copy()  # فقط التواريخ السابقة
+    future = model.history[["ds"]].copy()
 
     # ➕ إضافة اليوم الحالي باستخدام concat بدل append
     new_row = pd.DataFrame([{"ds": today}])
     future = pd.concat([future, new_row], ignore_index=True)
+    print(f"future1::::{future}")
 
     # حذف التكرارات في حال كان تاريخ اليوم موجود مسبقًا
     future = future.drop_duplicates(subset="ds")
-
+    print(f"future2::::{future}")
     # دمج بيانات الطقس
     future = future.merge(weather_data, on="ds", how="left")
+    checkpoints = get_latest_checkpoint_values()
+    checkpoints_data = pd.DataFrame([{
+        "ds": today,
+        "cp_1": checkpoints["cp_1"],
+        "cp_2": checkpoints["cp_2"],
+        "cp_3": checkpoints["cp_3"],
+        "cp_4": checkpoints["cp_4"],
+        "cp_5": checkpoints["cp_5"]
+    }])
+    future = future.merge(checkpoints_data, on="ds", how="left")
+    print(f"future3::::{future}")
 
     print("🔄 future بعد الدمج:")
     print(future.tail(3))
@@ -118,8 +140,22 @@ def get_future_demand_forecast_with_weather(product_id, days=7, location="Nablus
     if not forecast_weather:
         print("❌ فشل في جلب الطقس المستقبلي.")
         return None
+    checkpoints = get_latest_checkpoint_values()
+    print("########################")
 
     weather_df = pd.DataFrame(forecast_weather)
+
+    # نستخدم التواريخ من weather_df
+    latest_checkpoints = get_latest_checkpoint_values()
+    checkpoint_df = pd.DataFrame({
+        "ds": weather_df["ds"]
+    })
+    for col, val in latest_checkpoints.items():
+        checkpoint_df[col] = val
+
+    weather_df = weather_df.merge(checkpoint_df, on="ds", how="left")
+    print(f"########################weather_df{weather_df}")
+
     forecast = model.predict(weather_df)
     return forecast[["ds", "yhat"]]
 
@@ -147,11 +183,20 @@ def get_prediction_vs_actual_analysis(product_id, days=7):
 
     # جلب الطلبات الفعلية من خلال service
     actual_df = get_actual_orders_per_day(product_id, start_date=date_list[0], end_date=date_list[-1])
+    print(f"actual_df**: {actual_df}")
 
     # تجهيز future DataFrame بالتواريخ المطلوبة
     future_df = pd.DataFrame({"ds": date_list})
     future_df = future_df.merge(weather_df, on="ds", how="left")
+    print(f"future_df**: {future_df}")
 
+    checkpoints = get_checkpoint_conditions_last_n_days()
+    checkpoints_df = pd.DataFrame({"ds":future_df["ds"]})
+    checkpoints_df = checkpoints_df.merge(checkpoints, on="ds", how="left")
+    print(f"checkpoints_df$$: {checkpoints_df}")
+
+    future_df = future_df.merge(checkpoints_df, on="ds", how="left")
+    print(f"future_df: {future_df}")
     # تحميل النموذج والتنبؤ
     model = joblib.load(model_path)
     forecast = model.predict(future_df)
