@@ -28,34 +28,37 @@ st.markdown("""
 
 
 
-raw_materials = raw_materials_service.get_raw_materials()
+import pandas as pd
+import streamlit as st
+from services.raw_materials_service import get_raw_material_demand_with_days_to_empty
 
-if raw_materials:
-    # استرجاع الطلب المتوقع لكل مادة خام
-    raw_material_demand = raw_materials_service.get_raw_material_demand()
-    print(raw_material_demand)
-    # إنشاء إطار بيانات لعرض المواد الخام مع الطلب المتوقع
-    raw_material_data = []
-    for material in raw_materials:
-        material_name = material.name
-        quantity_in_stock = material.quantity_in_stock
-        expected_demand = raw_material_demand.get(material_name, 0)
-        raw_material_data.append({
-            "اسم المادة الخام": material_name,
-            "الكمية المتوفرة": quantity_in_stock,
-            "الطلب المتوقع": expected_demand,
-        })
+st.markdown("### 📦 المواد الخام وتوقعات النفاد", unsafe_allow_html=True)
 
-    # عرض البيانات في جدول
-    df = pd.DataFrame(raw_material_data)
-    st.dataframe(df)
+data = get_raw_material_demand_with_days_to_empty()
+days_to_empty_map = {
+    d["name"]: d["days_to_empty"]
+    for d in data
+}
+if data:
+    df = pd.DataFrame(data)
+    df.rename(columns={
+        "name": "اسم المادة الخام",
+        "daily_demand": "الطلب اليومي المتوقع",
+        "quantity_in_stock": "الكمية المتوفرة",
+        "days_to_empty": "أيام حتى النفاد"
+    }, inplace=True)
 
+    st.dataframe(df.style.format({
+        "الطلب اليومي المتوقع": "{:.1f}",
+        "الكمية المتوفرة": "{:.1f}",
+        "أيام حتى النفاد": "{:.1f}"
+    }))
 else:
-    st.info("لا توجد مواد خام بعد.")
+    st.info("لا توجد بيانات لعرضها.")
 
 
 # ----------------- عرض المادة الخام -----------------
-def render_raw_material_card(raw_material):
+def render_raw_material_card(raw_material, days_to_empty_map):
     st.markdown("<div style='background-color:#FFFDF6; padding:15px; border-radius:12px; margin-bottom:20px; box-shadow:0 2px 8px #ccc;'>", unsafe_allow_html=True)
     cols = st.columns([1, 3])
 
@@ -79,6 +82,22 @@ def render_raw_material_card(raw_material):
         stock_display = f"<span style='color:red;'>⚠️ {stock} فقط!</span>" if stock < 5 else f"{stock}"
         st.markdown(f"<p><strong>📦 الكمية المتوفرة:</strong> {stock_display}</p>", unsafe_allow_html=True)
 
+        days_to_empty = days_to_empty_map.get(raw_material.name)
+
+        if days_to_empty == "∞":
+            display = "∞ (لا يوجد طلب)"
+            color = "gray"
+        elif days_to_empty is not None and days_to_empty < 3:
+            display = f"{days_to_empty:.1f} يوم"
+            color = "red"
+        else:
+            display = f"{days_to_empty:.1f} يوم"
+            color = "green"
+
+        st.markdown(
+            f"<p><strong>🕒 أيام حتى النفاد:</strong> <span style='color:{color}; font-weight:bold;'>{display}</span></p>",
+            unsafe_allow_html=True
+        )
 
     if st.session_state.get(f"edit_{raw_material.id}", False):
         render_edit_form(raw_material)
@@ -142,7 +161,7 @@ if raw_materials:
 
     # ----------------- عرض كل بطاقة مادة خام -----------------
     for raw_material in raw_materials:
-        render_raw_material_card(raw_material)
+        render_raw_material_card(raw_material, days_to_empty_map)
 else:
     st.info("لا توجد مواد خام بعد.")
 

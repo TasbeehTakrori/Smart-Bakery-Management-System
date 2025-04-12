@@ -1,10 +1,56 @@
 from models.raw_material import RawMaterial
-from services.product_ai import predict_daily_demand_with_weather
+from services.product_ai import predict_avg_daily_demand_with_weather
 from models.product_ingredient import ProductIngredient
 from sqlalchemy.orm import joinedload
 from config import SessionLocal
 from models import RawMaterial, ProductIngredient, Product
 
+
+def get_raw_material_demand_with_days_to_empty():
+    session = SessionLocal()
+    try:
+        raw_materials = session.query(RawMaterial).all()
+        products = session.query(Product).all()
+
+        # توقع الطلب اليومي لكل منتج مرة واحدة
+        product_demand = {
+            product.id: predict_avg_daily_demand_with_weather(product.id)
+            for product in products
+        }
+
+        raw_material_demand_list = []
+
+        for material in raw_materials:
+            total_daily_demand = 0
+
+            product_ingredients = session.query(ProductIngredient).filter(
+                ProductIngredient.raw_material_id == material.id
+            ).all()
+
+            for ingredient in product_ingredients:
+                demand = product_demand.get(ingredient.product_id)
+                if demand:
+                    total_daily_demand += demand * ingredient.quantity_needed
+
+            if total_daily_demand > 0:
+                days_to_empty = material.quantity_in_stock / total_daily_demand
+            else:
+                days_to_empty = float('inf')  # لن تنفد المادة الخام لأن الطلب صفر
+
+            raw_material_demand_list.append({
+                "name": material.name,
+                "daily_demand": round(total_daily_demand, 2),
+                "quantity_in_stock": round(material.quantity_in_stock, 2),
+                "days_to_empty": round(days_to_empty, 1) if days_to_empty != float('inf') else "∞"
+            })
+
+        return raw_material_demand_list
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+    finally:
+        session.close()
 
 def get_raw_material_demand():
     session = SessionLocal()
@@ -16,7 +62,7 @@ def get_raw_material_demand():
         product_demand = {}
         products = session.query(Product).all()
         for product in products:
-            product_demand[product.id] = predict_daily_demand_with_weather(product.id)
+            product_demand[product.id] = predict_avg_daily_demand_with_weather(product.id)
             print(f"product_demand: {product.name}, {product_demand[product.id]}")
         raw_material_demand = {}
 
