@@ -1,3 +1,4 @@
+import streamlit
 from models.product import Product
 from config import SessionLocal
 
@@ -72,3 +73,67 @@ def delete_product(product_id):
         session.commit()
 
     session.close()
+
+def get_product_by_name(name):
+    session = SessionLocal()
+    product = session.query(Product).filter(Product.name == name).first()  # البحث عن المنتج بالاسم
+    return product  # إرجاع المنتج إذا وجد، أو None إذا لم يجد
+
+from models.raw_material import RawMaterial
+from sqlalchemy.orm import Session
+
+# دالة لاسترجاع المواد الخام من قاعدة البيانات
+def get_raw_materials():
+    session = SessionLocal()  # تأكد من أنك قمت بتعريف SessionLocal في config.py أو مكان آخر
+    raw_materials = session.query(RawMaterial).all()
+    session.close()
+    return raw_materials
+
+
+# دالة للحصول على الـ product_id بناءً على اسم المنتج
+def get_product_id_by_name(name):
+    session = SessionLocal()
+
+    product = session.query(Product).filter(Product.name == name).first()
+    if product:
+        return product.id
+    return None  # إذا لم يتم العثور على المنتج
+
+from sqlalchemy.orm import Session
+from models import ProductIngredient, RawMaterial
+
+def add_product_ingredient(product_id, material, quantity):
+    session = SessionLocal()
+
+    # الحصول على الكائنات ذات الصلة من قاعدة البيانات
+    product = session.query(Product).filter(Product.id == product_id).first()
+    raw_material = session.query(RawMaterial).filter(RawMaterial.name == material).first()
+
+    if product and raw_material:
+        # إضافة البيانات إلى جدول المواد الخام المرتبطة بالمنتج
+        product_ingredient = ProductIngredient(
+            product_id=product.id,
+            raw_material_id=raw_material.id,
+            quantity_needed=quantity
+        )
+
+        # إضافة التغييرات إلى الجلسة
+        session.add(product_ingredient)
+        session.commit()
+
+        # إغلاق الجلسة
+        session.close()
+
+        # تأكيد إضافتها
+        return True
+    else:
+        # في حال عدم العثور على المنتج أو المادة الخام
+        session.close()
+        return False
+
+
+def remove_all_raw_materials_for_product(product_id):
+    session = SessionLocal()  # افتراض وجود جلسة SQLAlchemy
+    session.query(ProductIngredient).filter(ProductIngredient.product_id == product_id).delete()
+    session.commit()
+    print(f"تم حذف المواد الخام المرتبطة بالمنتج {product_id}")

@@ -145,7 +145,7 @@ def render_product_card(product):
 
 
 # ----------------- التبويبات -----------------
-tab1, tab2, tab3, tab4 = st.tabs(["🔮 التوقعات", "👥 الزبائن", "🕒 الطلبات", "📊 الأداء العام"])
+tab1, tab2, tab3 = st.tabs(["🔮 التوقعات", "🕒 الطلبات", "📊 الأداء العام"])
 
 with tab3:
     st.markdown("### 📊 الطلبات اليومية حسب المنتج (آخر ٧ أيام)", unsafe_allow_html=True)
@@ -172,13 +172,6 @@ with tab3:
     else:
         st.info("لا توجد بيانات للسبعة أيام الماضية.")
 
-with tab2:
-    st.markdown("### 👥 الزبائن المتكررين", unsafe_allow_html=True)
-    repeat_customers = order_service.get_repeat_customers()
-    if repeat_customers:
-        st.table(pd.DataFrame(repeat_customers))
-    else:
-        st.info("لا توجد بيانات زبائن متكررين.")
 
 with tab1:
     st.markdown("### 🔮 توقع الطلبات القادمة", unsafe_allow_html=True)
@@ -186,7 +179,7 @@ with tab1:
     for p in products:
         render_product_card(p)
 
-with tab4:
+with tab2:
     st.markdown("### 📦 إجمالي الكمية المطلوبة حسب المنتج", unsafe_allow_html=True)
     total_quantities = order_service.get_total_quantity_by_product()
     if total_quantities:
