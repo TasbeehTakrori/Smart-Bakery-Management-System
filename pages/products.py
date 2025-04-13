@@ -1,6 +1,7 @@
 import streamlit as st
 from components import header, footer
 from components.layout import apply_rtl
+from services.raw_materials_service import get_raw_materials
 from services import product_service
 from services.product_ai import  predict_avg_daily_demand_with_weather
 from services.order_service import get_latest_order_date
@@ -62,7 +63,7 @@ def render_product_card(product, demand):
     with cols[0]:
         display_local_image(product.get("image_url"), width=240)
         st.markdown('')
-        in_col1, in_col2 = st.columns([1, 1])
+        in_col1, in_col2, in_col3 = st.columns([1, 1, 1])
         with in_col1:
             if st.button("✏️ تعديل", key=f"toggle_edit_{product['id']}"):
                 st.session_state[f"edit_{product['id']}"] = not st.session_state.get(f"edit_{product['id']}", False)
@@ -71,6 +72,10 @@ def render_product_card(product, demand):
                 product_service.delete_product(product['id'])
                 st.success("✅ تم حذف المنتج.")
                 st.rerun()
+        with in_col3:
+            if st.button("المواد الخام", key=f"toggle_add_edit_raw_material_{product['id']}"):
+                st.session_state[f"add_edit_raw_material_{product['id']}"] = not st.session_state.get(f"add_edit_raw_material_{product['id']}", False)
+
 
     with cols[1]:
         st.markdown(f"<h4 style='color:#4E342E;'>{product['name']}</h4>", unsafe_allow_html=True)
@@ -99,7 +104,8 @@ def render_product_card(product, demand):
 
     if st.session_state.get(f"edit_{product['id']}", False):
         render_edit_form(product)
-
+    if st.session_state.get(f"add_edit_raw_material_{product['id']}", False):
+        raw_material_edit_form(product)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ----------------- تعديل المنتج -----------------
@@ -130,6 +136,34 @@ def render_edit_form(product):
                 product_service.update_product(product["id"], updated_product)
                 st.success("✅ تم تعديل المنتج بنجاح.")
                 st.rerun()
+
+def raw_material_edit_form(product):
+    with st.expander("📝 تعديل المواد الخام", expanded=True):
+
+            st.markdown("### المواد الخام")
+            raw_materials =  get_raw_materials()
+            raw_material_names = [material.name for material in raw_materials]
+
+            selected_materials = st.multiselect("اختر المواد الخام", raw_material_names)
+
+            raw_material_quantities = {}
+
+            # Dynamically generate number_input for each selected material inside the form
+            for material in selected_materials:
+                quantity = st.number_input(f"كمية ال{material} لكيلو واحد من {product['name']} ", min_value=0.00, step=0.05, key=f"quantity_{material}_{product['id']}")
+                if quantity > 0:
+                    raw_material_quantities[material] = quantity
+
+            if st.button("إضافة المواد الخام"):
+                product_service.remove_all_raw_materials_for_product(product['id'])
+                # إضافة المواد الخام والكميات إلى قاعدة البيانات
+                for material, quantity in raw_material_quantities.items():
+                    product_service.add_product_ingredient(product['id'], material, quantity)
+                st.success("✅ تم إضافة المواد الخام بنجاح.")
+
+
+
+
 
 # ----------------- عرض المنتجات -----------------
 products = product_service.get_products()
@@ -182,9 +216,14 @@ if st.button("🗑️ حذف كل المنتجات"):
     st.rerun()
 
 # ----------------- إضافة منتج جديد -----------------
-st.markdown("---")
-st.markdown("### ➕ إضافة منتج جديد", unsafe_allow_html=True)
 
+import streamlit as st
+from datetime import datetime
+
+# إعداد الصفحة
+st.markdown("### ➕ إضافة منتج جديد")
+
+# نموذج لإضافة المنتج
 with st.form("add_product_form"):
     col1, col2 = st.columns(2)
     with col1:
@@ -201,20 +240,24 @@ with st.form("add_product_form"):
         price = st.number_input("السعر بالشيكل (₪)", min_value=0.5, step=0.5, format="%.1f")
         stock = st.number_input("الكمية المتوفرة", min_value=0)
 
-    if st.form_submit_button("إضافة المنتج"):
+    # زر لإرسال نموذج المنتج
+    product_submit_button = st.form_submit_button("إضافة المنتج")
 
-        new_product = {
-            "name": name,
-            "description": description,
-            "price": price,
-            "stock": stock,
-            "image_url": image_filename or "images/default.png",
-            "created_at": datetime.now()
-        }
-        product_service.add_product(new_product)
-        st.success("✅ تم إضافة المنتج بنجاح.")
-        st.rerun()
+if product_submit_button:
+    # إضافة المنتج إلى قاعدة البيانات
+    new_product = {
+        "name": name,
+        "description": description,
+        "price": price,
+        "stock": stock,
+        "image_url": image_filename or "images/default.png",
+        "created_at": datetime.now()
+    }
 
+    # إضافة المنتج
+    product_service.add_product(new_product)
+    st.success("✅ تم إضافة المنتج بنجاح.")
+    st.rerun()
 #-------- إعادة تدريب النماذج ----------
 
 # عند الضغط على الزر

@@ -37,7 +37,7 @@ def retrain_prophet_models_with_weather():
         if len(df) < 7:
             continue
 
-        df["ds"] = pd.to_datetime(df["ds"])
+        df["ds"] = pd.to_datetime(df["ds"], errors="coerce", format="mixed").dt.normalize()
 
         # تحميل بيانات الطقس
         weather_data = get_historical_weather_data(df["ds"].min(), df["ds"].max())

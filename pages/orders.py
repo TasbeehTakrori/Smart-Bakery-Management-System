@@ -2,9 +2,8 @@ import streamlit as st
 from components import header, footer
 from components.layout import apply_rtl
 from services import order_service, product_service
-from services.product_ai import get_future_demand_forecast_with_weather
-from services.product_ai import get_prediction_vs_actual_analysis
-from services.order_service import get_latest_order_date
+from services.product_ai import get_future_demand_forecast_with_weather, get_prediction_vs_actual_analysis
+from services.order_service import get_latest_order_date, place_new_order
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
@@ -32,6 +31,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+
 def render_product_card(product):
     forecast_df = get_future_demand_forecast_with_weather(product["id"])
     predicted_today = None
@@ -44,21 +44,16 @@ def render_product_card(product):
         if not filtered_today.empty:
             predicted_today = filtered_today["yhat"].values[0]
 
-    # خلفية البطاقة حسب حالة الطلب
     if predicted_today is not None:
         if predicted_today <= product["stock"]:
-            background_color = "#E8F5E9"  # أخضر فاتح
+            background_color = "#E8F5E9"
         else:
-            background_color = "#FFF3E0"  # برتقالي فاتح
+            background_color = "#FFF3E0"
     else:
-        background_color = "#FFFDE7"  # افتراضي
+        background_color = "#FFFDE7"
 
     with st.expander(f"📦 {product['name']}", expanded=False):
-        st.markdown(
-            f"<h3 style='font-size: 22px; font-weight: bold; color: #333;'>{product['name']}</h3>",
-            unsafe_allow_html=True
-        )
-        st.markdown("  ")
+        st.markdown(f"<h3 style='font-size: 22px; font-weight: bold; color: #333;'>{product['name']}</h3>", unsafe_allow_html=True)
         stock = product["stock"]
         stock_display = f"<span style='color:red;'>⚠️ {stock} فقط!</span>" if stock < 5 else f"{stock}"
         st.markdown(f"<p><strong>📦 الكمية:</strong> {stock_display}</p>", unsafe_allow_html=True)
@@ -67,14 +62,11 @@ def render_product_card(product):
         if latest_order:
             st.markdown(f"<p><strong>🕒 آخر طلب:</strong> {latest_order.strftime('%Y/%m/%d')}</p>", unsafe_allow_html=True)
 
-        forecast_df = get_future_demand_forecast_with_weather(product["id"])
         if forecast_df is not None:
             today = datetime.now()
             yesterday = today - timedelta(days=1)
-
             forecast_df = forecast_df[forecast_df["ds"].between(yesterday, today + timedelta(days=6))].copy()
-            forecast_df["day"] = forecast_df["ds"].apply(
-                lambda d: f"{arabic_days[d.strftime('%A')]} - {d.strftime('%Y/%m/%d')}")
+            forecast_df["day"] = forecast_df["ds"].apply(lambda d: f"{arabic_days[d.strftime('%A')]} - {d.strftime('%Y/%m/%d')}")
             today_str = f"{arabic_days[today.strftime('%A')]} - {today.strftime('%Y/%m/%d')}"
             forecast_df["color"] = forecast_df["day"].apply(lambda d: "red" if d == today_str else "#6D4C41")
 
@@ -144,10 +136,60 @@ def render_product_card(product):
         st.progress(min(accuracy / 100, 1.0))
 
 
-# ----------------- التبويبات -----------------
-tab1, tab2, tab3, tab4 = st.tabs(["🔮 التوقعات", "👥 الزبائن", "🕒 الطلبات", "📊 الأداء العام"])
+# ----------------- تبويبات -----------------
+tab1, tab2, tab3, tab4 = st.tabs(["🔮 التوقعات", "➕ إضافة طلب جديد", "📦 الطلبات", "📊 الأداء العام"])
 
+# ----------------- تبويب التوقعات -----------------
+with tab1:
+    st.markdown("### 🔮 توقع الطلبات القادمة", unsafe_allow_html=True)
+    products = product_service.get_products()
+    for p in products:
+        render_product_card(p)
+
+# ----------------- تبويب إضافة طلب جديد -----------------
+with tab2:
+    st.markdown("### ➕ إضافة طلب جديد", unsafe_allow_html=True)
+
+    with st.form("add_order_form"):
+        products = product_service.get_products()
+        product_options = {p["name"]: p["id"] for p in products}
+
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_name = st.selectbox("🧺 اختر المنتج", list(product_options.keys()))
+        with col2:
+            quantity = st.number_input("🔢 الكمية المطلوبة", min_value=1, step=1)
+
+        submitted = st.form_submit_button("✅ تنفيذ الطلب")
+        if submitted:
+            product_id = product_options[selected_name]
+            success = place_new_order(product_id, quantity)
+
+            if success:
+                st.success("✅ تم تنفيذ الطلب بنجاح وتحديث الكميات.")
+                st.rerun()
+            else:
+                st.error("❌ لم يتم تنفيذ الطلب. تأكد من توفر الكميات الكافية.")
+
+# ----------------- تبويب الطلبات -----------------
 with tab3:
+    st.markdown("### 📦 إجمالي الكمية المطلوبة حسب المنتج", unsafe_allow_html=True)
+    total_quantities = order_service.get_total_quantity_by_product()
+    if total_quantities:
+        df = pd.DataFrame(total_quantities)
+        product_names = {p['id']: p['name'] for p in product_service.get_products()}
+        df["name"] = df["product_id"].map(product_names)
+        fig = px.bar(df, x="name", y="total_quantity", text="total_quantity",
+                     labels={"name": "اسم المنتج", "total_quantity": "إجمالي الكمية المطلوبة"},
+                     title="📦 إجمالي الكمية المُباعة لكل منتج",
+                     color_discrete_sequence=["#6D4C41"])
+        fig.update_layout(font=dict(family="Cairo, sans-serif"))
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("لا توجد بيانات لعرضها.")
+
+# ----------------- تبويب الأداء -----------------
+with tab4:
     st.markdown("### 📊 الطلبات اليومية حسب المنتج (آخر ٧ أيام)", unsafe_allow_html=True)
     recent_orders = order_service.get_recent_orders(days=7)
     if recent_orders:
@@ -172,34 +214,8 @@ with tab3:
     else:
         st.info("لا توجد بيانات للسبعة أيام الماضية.")
 
-with tab2:
-    st.markdown("### 👥 الزبائن المتكررين", unsafe_allow_html=True)
-    repeat_customers = order_service.get_repeat_customers()
-    if repeat_customers:
-        st.table(pd.DataFrame(repeat_customers))
-    else:
-        st.info("لا توجد بيانات زبائن متكررين.")
+# ----------------- عرض بطاقة التوقع لكل منتج -----------------
 
-with tab1:
-    st.markdown("### 🔮 توقع الطلبات القادمة", unsafe_allow_html=True)
-    products = product_service.get_products()
-    for p in products:
-        render_product_card(p)
 
-with tab4:
-    st.markdown("### 📦 إجمالي الكمية المطلوبة حسب المنتج", unsafe_allow_html=True)
-    total_quantities = order_service.get_total_quantity_by_product()
-    if total_quantities:
-        df = pd.DataFrame(total_quantities)
-        product_names = {p['id']: p['name'] for p in product_service.get_products()}
-        df["name"] = df["product_id"].map(product_names)
-        fig = px.bar(df, x="name", y="total_quantity", text="total_quantity",
-                     labels={"name": "اسم المنتج", "total_quantity": "إجمالي الكمية المطلوبة"},
-                     title="📦 إجمالي الكمية المُباعة لكل منتج",
-                     color_discrete_sequence=["#6D4C41"])
-        fig.update_layout(font=dict(family="Cairo, sans-serif"))
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("لا توجد بيانات لعرضها.")
-
+# ----------------- تذييل -----------------
 footer.render()

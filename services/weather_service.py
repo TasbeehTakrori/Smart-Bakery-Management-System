@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 
 # WeatherAPI Key
-API_KEY = "87c7874ee8424acab67195650250304"
+API_KEY = "db354a26cc0e49e4ae1175927251204"
 
 # --------------------------------
 # تحقق من API_KEY
@@ -144,15 +144,15 @@ def get_weather_forecast(days=7, location="Nablus"):
 # --------------------------------
 # اختبار الدوال
 # --------------------------------
-start = datetime(2025, 3, 1)
-end = datetime(2025, 3, 20)
-location = "32.2226,35.2620"  # إحداثيات نابلس
-
-weather_data = get_historical_weather_data(start, end, location)
-
-# طباعة النتائج بشكل منسق
-for row in weather_data:
-    print(f"{row['ds']} | 🌡️ {row['temperature']}°C | 💧 {row['humidity']}% | 💨 {row['wind_speed']} kph")
-
-print("\n🌤️ بيانات الطقس الحالي:")
+# start = datetime(2025, 3, 1)
+# end = datetime(2025, 3, 20)
+# location = "32.2226,35.2620"  # إحداثيات نابلس
+#
+# weather_data = get_historical_weather_data(start, end, location)
+#
+# # طباعة النتائج بشكل منسق
+# for row in weather_data:
+#     print(f"{row['ds']} | 🌡️ {row['temperature']}°C | 💧 {row['humidity']}% | 💨 {row['wind_speed']} kph")
+#
+# print("\n🌤️ بيانات الطقس الحالي:")
 get_current_weather("Nablus")

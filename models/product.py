@@ -15,3 +15,4 @@ class Product(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     orders = relationship("Order", back_populates="product")
+    ingredients = relationship("ProductIngredient", back_populates="product")

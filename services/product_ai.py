@@ -54,7 +54,6 @@ def predict_avg_daily_demand_with_weather(product_id, days=7, location="Nablus")
 # دالة التنبؤ بالطلب
 from datetime import datetime
 import pandas as pd
-
 def predict_daily_demand_with_weather(product_id):
     model_path = f"ai_models/prophet/prophet_product_{product_id}.pkl"
 
@@ -65,67 +64,47 @@ def predict_daily_demand_with_weather(product_id):
     print(f"✅ جاري تحميل النموذج من {model_path}")
     model = joblib.load(model_path)
 
+    # 🟡 جلب بيانات الطقس
     print("🌦️ محاولة جلب بيانات الطقس الحالية...")
     weather = get_current_weather()
-
     if weather is None:
         print("❌ لم يتمكن النظام من جلب بيانات الطقس.")
         return None
+    print("✅ بيانات الطقس تم جلبها بنجاح.")
 
-    print("✅ بيانات الطقس تم جلبها بنجاح:")
-    print(weather)
+    # 🟡 جلب بيانات الحواجز
+    checkpoints = get_latest_checkpoint_values()
+    if checkpoints is None:
+        print("❌ لم يتمكن النظام من جلب حالة الحواجز.")
+        return None
 
-    # 🗓️ تاريخ اليوم (بدون وقت)
+    # 🗓️ تجهيز تاريخ اليوم
     today = pd.to_datetime(datetime.now().date())
 
-    # 📋 تجهيز بيانات الطقس
-    weather_data = pd.DataFrame([{
+    # 🧾 بناء صف واحد فقط لليوم الحالي
+    input_data = pd.DataFrame([{
         "ds": today,
         "temperature": weather["temperature"],
         "humidity": weather["humidity"],
-        "wind_speed": weather["wind_speed"]
-    }])
-    print("📋 بيانات الطقس:")
-    print(weather_data)
-
-    # ⚙️ توليد future بدون أيام إضافية
-    future = model.history[["ds"]].copy()
-
-    # ➕ إضافة اليوم الحالي باستخدام concat بدل append
-    new_row = pd.DataFrame([{"ds": today}])
-    future = pd.concat([future, new_row], ignore_index=True)
-    print(f"future1::::{future}")
-
-    # حذف التكرارات في حال كان تاريخ اليوم موجود مسبقًا
-    future = future.drop_duplicates(subset="ds")
-    print(f"future2::::{future}")
-    # دمج بيانات الطقس
-    future = future.merge(weather_data, on="ds", how="left")
-    checkpoints = get_latest_checkpoint_values()
-    checkpoints_data = pd.DataFrame([{
-        "ds": today,
+        "wind_speed": weather["wind_speed"],
         "cp_1": checkpoints["cp_1"],
         "cp_2": checkpoints["cp_2"],
         "cp_3": checkpoints["cp_3"],
         "cp_4": checkpoints["cp_4"],
         "cp_5": checkpoints["cp_5"]
     }])
-    future = future.merge(checkpoints_data, on="ds", how="left")
-    print(f"future3::::{future}")
 
-    print("🔄 future بعد الدمج:")
-    print(future.tail(3))
+    print("📋 البيانات المُدخلة للتنبؤ:")
+    print(input_data)
 
     try:
-        forecast = model.predict(future)
-        today_prediction = forecast[forecast["ds"] == today]["yhat"].values[0]
-        print(f"✅ تنبؤ الطلب اليوم {today}: {today_prediction}")
-        return today_prediction
+        forecast = model.predict(input_data)
+        prediction = forecast.loc[forecast["ds"] == today, "yhat"].values[0]
+        print(f"✅ تنبؤ الطلب لليوم {today.date()}: {prediction:.2f}")
+        return prediction
     except Exception as e:
         print(f"❌ خطأ أثناء التنبؤ: {e}")
         return None
-
-
 
 def get_future_demand_forecast_with_weather(product_id, days=7, location="Nablus"):
     model_path = f"ai_models/prophet/prophet_product_{product_id}.pkl"
@@ -140,8 +119,6 @@ def get_future_demand_forecast_with_weather(product_id, days=7, location="Nablus
     if not forecast_weather:
         print("❌ فشل في جلب الطقس المستقبلي.")
         return None
-    checkpoints = get_latest_checkpoint_values()
-    print("########################")
 
     weather_df = pd.DataFrame(forecast_weather)
 
@@ -221,3 +198,6 @@ def get_prediction_vs_actual_analysis(product_id, days=7):
     accuracy = 100 - mape
 
     return result_df.sort_values("ds"), mae, mape, accuracy
+
+
+
