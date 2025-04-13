@@ -48,6 +48,8 @@ if data:
         "days_to_empty": "أيام حتى النفاد"
     }, inplace=True)
 
+    df["أيام حتى النفاد"] = pd.to_numeric(df["أيام حتى النفاد"], errors="coerce")
+
     st.dataframe(df.style.format({
         "الطلب اليومي المتوقع": "{:.1f}",
         "الكمية المتوفرة": "{:.1f}",
@@ -109,7 +111,7 @@ def render_edit_form(raw_material):
     with st.expander("📝 تعديل المادة الخام", expanded=True):
         with st.form(f"edit_form_{raw_material.id}"):
             name = st.text_input("اسم المادة الخام", value=raw_material.name)
-            quantity_in_stock = st.number_input("الكمية المتوفرة", min_value=0, value=raw_material.quantity_in_stock)
+            quantity_in_stock = st.number_input("الكمية المتوفرة", min_value=0.0, value=raw_material.quantity_in_stock)
 
             if st.form_submit_button("📏 حفظ التعديلات"):
                 updated_raw_material = {

@@ -7,7 +7,7 @@ conn = sqlite3.connect("../bakery.db")
 cursor = conn.cursor()
 
 # إعداد
-product_ids = [1, 2, 3]
+product_ids = [1, 2, 3, 4]
 days_back = 30
 today = datetime.today().date()
 
