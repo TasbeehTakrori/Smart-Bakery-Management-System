@@ -58,22 +58,22 @@ This is an AI-powered bakery management prototype built using **Streamlit** and 
 ```bash
 git clone https://github.com/TasbeehTakrori/Smart-Bakery-Management-System.git
 cd Smart-Bakery-Management-System
-
+````
 ---
 
 ## ▶️ How to Run
 
 1. **Clone the repo**
 
-```bash
-git clone https://github.com/TasbeehTakrori/Smart-Bakery-Management-System.git
-cd Smart-Bakery-Management-System
-```
+  ```bash
+    git clone https://github.com/TasbeehTakrori/Smart-Bakery-Management-System.git
+    cd Smart-Bakery-Management-System
+  ```
 
 2. **Install requirements**
-```bash
-pip install -r requirements.txt
-```
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 3. **Run the app**
 ```bash
